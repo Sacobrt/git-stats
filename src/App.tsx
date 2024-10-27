@@ -5,6 +5,7 @@ import { FaArrowCircleRight, FaCheckCircle, FaFolderOpen, FaPlus, FaSave, FaTras
 import { Repo, RepoCommitData, UserData } from "./types";
 import WeeklyCommitsComparison from "./components/WeeklyCommitsComparison";
 import About from "./components/About";
+import { Analytics } from "@vercel/analytics/react";
 
 function App() {
     const [gitData, setGitData] = useState<RepoCommitData[] | null>(null);
@@ -187,6 +188,8 @@ function App() {
 
     return (
         <div className="container mx-auto p-6 font-sans">
+            <Analytics />
+
             <div className="max-w-4xl mx-auto">
                 <div className="text-center mb-10">
                     <img src={logo} alt="Logo" className="h-16 mx-auto" />
