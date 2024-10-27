@@ -1,6 +1,4 @@
-# GitHub Repo Commit Stats
-
-![Logo](./src/assets/logo.png)
+# <img src="./src/assets/logo.png" alt="Logo" width="30" height="30"> GitHub Repo Commit Stats
 
 ## Overview
 
@@ -15,10 +13,14 @@ GitHub Repo Commit Stats is a web application for visualizing and saving commit 
 
 ## Installation
 
+To get started, clone the repository and install the required dependencies.
+
     git clone https://github.com/Sacobrt/git-stats.git
     cd git-stats
 
-    Install Dependencies Ensure you have Node.js installed.
+#### Prerequisites
+
+Ensure that you have Node.js installed.
 
     npm install
     npm run dev
@@ -35,17 +37,7 @@ Analyze Weekly Trends: The comparative section at the bottom provides insights i
 
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
-
--   Fork the Repository
--   Create a Branch `git checkout -b feature/YourFeatureName`
-
--   Commit Your Changes
-
--   Push to Your Fork
-    `git push origin feature/YourFeatureName`
-
--   Submit a Pull Request
+Contributions are greatly valued and help improve this project!
 
 ## License
 
