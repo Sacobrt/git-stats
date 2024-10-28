@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { FaQuestionCircle } from "react-icons/fa";
+import { FaGithub, FaQuestionCircle } from "react-icons/fa";
 
 function About() {
     const [isAboutVisible, setIsAboutVisible] = useState(false);
@@ -26,10 +26,25 @@ function About() {
     return (
         <>
             {/* About Button */}
-            <button onClick={toggleAbout} className="text-gray-600 hover:text-indigo-600 flex items-center space-x-2 mt-4" aria-label="About">
-                <FaQuestionCircle className="text-xl" />
-                <span>About</span>
-            </button>
+            <div className="flex gap-5">
+                <button
+                    onClick={toggleAbout}
+                    className="text-gray-600 hover:text-indigo-600 flex items-center space-x-2 transition-all duration-500 ease-in-out"
+                    aria-label="About"
+                >
+                    <FaQuestionCircle className="text-xl" />
+                    <span>About</span>
+                </button>
+                <a
+                    href="https://github.com/Sacobrt/git-stats"
+                    target="_blank"
+                    className="text-gray-600 hover:text-indigo-600 flex items-center space-x-2 transition-all duration-500 ease-in-out"
+                    aria-label="Open Source"
+                >
+                    <FaGithub className="text-xl" />
+                    <span className="flex items-center">Open Source</span>
+                </a>
+            </div>
 
             {/* About Modal */}
             {isAboutVisible && (
