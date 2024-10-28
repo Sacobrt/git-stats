@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import logo from "./assets/logo.png";
 import CommitsService from "./services/CommitsService";
-import { FaArrowCircleRight, FaCheckCircle, FaFolderOpen, FaPlus, FaSave, FaTrashAlt } from "react-icons/fa";
+import { FaArrowCircleRight, FaCheckCircle, FaChevronDown, FaChevronUp, FaFolderOpen, FaPlus, FaSave, FaTrashAlt } from "react-icons/fa";
 import { Repo, RepoCommitData, UserData } from "./types";
 import WeeklyCommitsComparison from "./components/WeeklyCommitsComparison";
 import About from "./components/About";
@@ -17,6 +17,14 @@ function App() {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState({ visible: false, type: "", message: "" });
+    const [loadedCollectionName, setLoadedCollectionName] = useState<string | null>(null);
+    const [lastCommitCount, setLastCommitCount] = useState<number>(0);
+    const [showAddRepoSection, setShowAddRepoSection] = useState(true);
+
+    // Calculate total commits for a given gitData array
+    const calculateTotalCommits = (data: RepoCommitData[] | null) => {
+        return data ? data.reduce((total, repo) => total + repo.weeks.reduce((sum, week) => sum + week.total, 0), 0) : 0;
+    };
 
     const [showAllRepos, setShowAllRepos] = useState(false);
 
@@ -32,6 +40,21 @@ function App() {
             setSavedData(JSON.parse(storedData));
         }
     }, []);
+
+    // Auto-update localStorage if `repos` or `gitData` changes, and only if commits have not decreased
+    useEffect(() => {
+        if (loadedCollectionName) {
+            const newCommitCount = calculateTotalCommits(gitData);
+
+            // Only save if new commits are more than or equal to previous commits
+            if (newCommitCount >= lastCommitCount) {
+                const updatedData = savedData.map((data) => (data.name === loadedCollectionName ? { ...data, repos, data: gitData || [] } : data));
+                setSavedData(updatedData);
+                localStorage.setItem("data", JSON.stringify(updatedData));
+                setLastCommitCount(newCommitCount);
+            }
+        }
+    }, [repos, gitData, loadedCollectionName]);
 
     const parseGitHubUrls = (urls: string): Repo[] => {
         const regex = /^https:\/\/github\.com\/([^\/]+)\/([^\/]+)$/;
@@ -148,6 +171,9 @@ function App() {
         if (dataToLoad) {
             setRepos(dataToLoad.repos);
             setGitData(dataToLoad.data);
+            setLoadedCollectionName(name);
+            setLastCommitCount(calculateTotalCommits(dataToLoad.data));
+            setShowAddRepoSection(!showAddRepoSection);
         }
     };
 
@@ -157,12 +183,17 @@ function App() {
             return;
         }
 
-        const newSavedData = [...savedData, { name: saveName, repos, data: gitData! }];
+        const updatedSavedData = savedData.map((data) => (data.name === saveName ? { ...data, repos, data: gitData! } : data));
+
+        // If no collection was updated, add a new one
+        const isExisting = updatedSavedData.some((data) => data.name === saveName);
+        const newSavedData = isExisting ? updatedSavedData : [...updatedSavedData, { name: saveName, repos, data: gitData! }];
+
         setSavedData(newSavedData);
         localStorage.setItem("data", JSON.stringify(newSavedData));
         setSaveName("");
 
-        setNotification({ visible: true, type: "success", message: `Data saved as "${saveName}"` });
+        setNotification({ visible: true, type: "success", message: `Data ${isExisting ? "updated" : "saved as new"} "${saveName}"` });
         setTimeout(() => setNotification({ visible: false, type: "", message: "" }), 3000);
     };
 
@@ -196,8 +227,6 @@ function App() {
                     <h1 className="text-5xl font-extrabold text-gray-800">GitHub Repo Commit Stats</h1>
                 </div>
 
-                <About />
-
                 {/* Notification */}
                 {notification.visible && (
                     <div
@@ -210,100 +239,148 @@ function App() {
                     </div>
                 )}
 
-                <div className="p-10 bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-3xl shadow-lg border border-gray-200/50 space-y-6 transition-all duration-300 ease-in-out">
-                    {/* Header */}
-                    <div className="text-3xl font-bold text-gray-800 flex items-center space-x-2">
-                        <FaPlus className="text-blue-500 text-3xl animate-pulse" />
-                        <span>Add GitHub Repositories</span>
-                    </div>
+                {/* Toggle Button for Add GitHub Repositories Section */}
+                <div className="flex justify-between items-center">
+                    <About />
 
-                    {/* Textarea for URLs */}
-                    <textarea
-                        placeholder="Enter GitHub URLs, each on a new line (e.g., https://github.com/owner/repo)"
-                        value={inputUrls}
-                        onChange={(e) => setInputUrls(e.target.value)}
-                        className="border-2 border-gray-600 p-4 w-full rounded-xl h-32 resize-y bg-gray-100 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300/50 transition duration-300 placeholder-gray-500 text-gray-800"
-                    />
-
-                    {/* Add Repositories Button */}
                     <button
-                        onClick={handleAddRepos}
-                        className="w-full py-3 text-gray-200 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-in-out flex items-center justify-center space-x-2"
+                        onClick={() => setShowAddRepoSection(!showAddRepoSection)}
+                        className="mr-5 flex items-center px-4 py-2 text-white font-semibold bg-indigo-500 rounded-lg hover:bg-indigo-600 transition duration-300"
                     >
-                        <FaPlus className="text-lg" />
-                        <span>Add Repositories</span>
+                        {showAddRepoSection ? (
+                            <>
+                                <FaChevronUp className="mr-2" />
+                                <span>Collapse</span>
+                            </>
+                        ) : (
+                            <>
+                                <FaChevronDown className="mr-2" />
+                                <span>Expand</span>
+                            </>
+                        )}
                     </button>
-
-                    {/* Error Message */}
-                    {error && <p className="text-red-500 font-medium mt-2 text-center bg-red-50 rounded-lg py-2 shadow-inner">{error}</p>}
-
-                    {/* Collection Section */}
-                    {(repos.length > 0 || savedData.length > 0) && (
-                        <div className="mt-8 p-8 bg-gradient-to-br from-gray-50 via-white to-gray-100 rounded-2xl shadow-md border border-gray-200 space-y-8">
-                            {/* Save Data Collection Section */}
-                            {repos.length > 0 && (
-                                <div className="space-y-4">
-                                    <h3 className="text-2xl font-semibold text-gray-800 flex items-center space-x-2">
-                                        <FaSave className="text-green-500 text-2xl" />
-                                        <span>Save Data Collection</span>
-                                    </h3>
-                                    <input
-                                        type="text"
-                                        placeholder="Collection name (e.g., Project Alpha)"
-                                        value={saveName}
-                                        onChange={(e) => setSaveName(e.target.value)}
-                                        className="border-2 border-gray-600 p-3 w-full rounded-lg hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300/50 transition duration-300 bg-white placeholder-gray-500 text-gray-800"
-                                    />
-                                    <button
-                                        onClick={saveData}
-                                        className="w-full py-3 text-gray-200 font-semibold bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-in-out flex items-center justify-center space-x-2"
-                                    >
-                                        <FaSave className="text-lg" />
-                                        <span>Save Collection</span>
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Your Collections Section */}
-                            {savedData.length > 0 && (
-                                <div>
-                                    <div className="text-2xl font-semibold text-gray-800 mb-4 flex items-center space-x-2">
-                                        <FaFolderOpen className="text-blue-500 text-2xl" />
-                                        <span>Your Collections</span>
-                                    </div>
-                                    <ul className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                                        {savedData.map((data, index) => (
-                                            <li
-                                                key={index}
-                                                className="flex flex-col justify-between p-6 bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-500 ease-in-out border border-gray-200"
-                                            >
-                                                <div className="flex items-center space-x-2">
-                                                    <FaFolderOpen className="text-gray-400 text-xl" />
-                                                    <span className="text-lg font-semibold text-gray-700">{data.name}</span>
-                                                </div>
-                                                <div className="flex space-x-2 mt-4">
-                                                    <button
-                                                        onClick={() => loadData(data.name)}
-                                                        className="flex-1 py-2 text-gray-200 bg-indigo-500 rounded-lg font-medium shadow-md hover:bg-indigo-600 transition duration-500 ease-in-out hover:scale-105 flex items-center justify-center space-x-2"
-                                                    >
-                                                        <span>Load Data</span>
-                                                        <FaArrowCircleRight className="text-lg" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => deleteData(data.name)}
-                                                        className="px-3 py-2 text-red-500 bg-red-100 rounded-lg font-medium shadow hover:bg-red-200 transition duration-300 ease-in-out flex items-center justify-center"
-                                                    >
-                                                        <FaTrashAlt className="text-lg" />
-                                                    </button>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
+
+                {/* Add GitHub Repositories Section */}
+                {showAddRepoSection && (
+                    <div className="mt-5 p-10 bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-3xl shadow-lg border border-gray-200/50 space-y-6 transition-all duration-300 ease-in-out">
+                        {/* Header */}
+                        <div className="text-3xl font-bold text-gray-800 flex items-center space-x-2">
+                            <FaPlus className="text-blue-500 text-3xl animate-pulse" />
+                            <span>Add GitHub Repositories</span>
+                        </div>
+
+                        {/* Textarea for URLs */}
+                        <textarea
+                            placeholder="Enter GitHub URLs, each on a new line (e.g., https://github.com/owner/repo)"
+                            value={inputUrls}
+                            onChange={(e) => setInputUrls(e.target.value)}
+                            className="border-2 border-gray-600 p-4 w-full rounded-xl h-32 resize-y bg-gray-100 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300/50 transition duration-300 placeholder-gray-500 text-gray-800"
+                        />
+
+                        {/* Add Repositories Button */}
+                        <button
+                            onClick={handleAddRepos}
+                            className="w-full py-3 text-gray-200 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-in-out flex items-center justify-center space-x-2"
+                        >
+                            <FaPlus className="text-lg" />
+                            <span>Add Repositories</span>
+                        </button>
+
+                        {/* Error Message */}
+                        {error && <p className="text-red-500 font-medium mt-2 text-center bg-red-50 rounded-lg py-2 shadow-inner">{error}</p>}
+
+                        {/* Collection Section */}
+                        {(repos.length > 0 || savedData.length > 0) && (
+                            <div className="mt-8 p-8 bg-gradient-to-br from-gray-50 via-white to-gray-100 rounded-2xl shadow-md border border-gray-200 space-y-8">
+                                {/* Save Data Collection Section */}
+                                {repos.length > 0 && (
+                                    <div className="space-y-4">
+                                        <h3 className="text-2xl font-semibold text-gray-800 flex items-center space-x-2">
+                                            <FaSave className="text-green-500 text-2xl" />
+                                            <span>Save Data Collection</span>
+                                        </h3>
+                                        <input
+                                            type="text"
+                                            placeholder="Collection name (e.g., Project Alpha)"
+                                            value={saveName}
+                                            onChange={(e) => setSaveName(e.target.value)}
+                                            className="border-2 border-gray-600 p-3 w-full rounded-lg hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300/50 transition duration-300 bg-white placeholder-gray-500 text-gray-800"
+                                        />
+                                        <button
+                                            onClick={saveData}
+                                            className="w-full py-3 text-gray-200 font-semibold bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-in-out flex items-center justify-center space-x-2"
+                                        >
+                                            <FaSave className="text-lg" />
+                                            <span>Save Collection</span>
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Your Collections Section */}
+                                {savedData.length > 0 && (
+                                    <div>
+                                        <div className="text-2xl font-semibold text-gray-800 mb-6 flex items-center space-x-2">
+                                            <FaFolderOpen className="text-indigo-500 text-2xl" />
+                                            <span>Your Collections</span>
+                                        </div>
+                                        <ul className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                            {savedData.map((data, index) => {
+                                                // Calculate total commits
+                                                const totalCommits = data.data.reduce((total, repoData) => {
+                                                    return total + repoData.weeks.reduce((weekTotal, week) => weekTotal + week.total, 0);
+                                                }, 0);
+
+                                                // Calculate total users
+                                                const uniqueUsers = new Set(data.repos.map((repo) => repo.owner)).size;
+
+                                                return (
+                                                    <li
+                                                        key={index}
+                                                        className="flex flex-col justify-between p-5 bg-white/70 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg transition-all transform duration-300 border border-gray-100"
+                                                    >
+                                                        {/* Collection Title */}
+                                                        <div className="flex items-center space-x-3">
+                                                            <FaFolderOpen className="text-indigo-400 text-lg" />
+                                                            <span className="text-lg font-semibold text-gray-700">{data.name}</span>
+                                                        </div>
+
+                                                        {/* Collection Data Overview */}
+                                                        <div className="mt-2 p-2 rounded-lg bg-gray-100/40 border border-gray-200/60 text-gray-600">
+                                                            <p className="text-sm font-medium">
+                                                                <strong>Total Commits:</strong> {totalCommits}
+                                                            </p>
+                                                            <p className="text-sm font-medium">
+                                                                <strong>Users:</strong> {uniqueUsers}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Action Buttons */}
+                                                        <div className="flex space-x-2 mt-2">
+                                                            <button
+                                                                onClick={() => loadData(data.name)}
+                                                                className="flex-1 py-2 text-gray-200 font-medium bg-indigo-500 rounded-lg shadow hover:bg-indigo-600 transition ease-in-out flex items-center justify-center space-x-1"
+                                                            >
+                                                                <span>Load Data</span>
+                                                                <FaArrowCircleRight className="text-sm" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => deleteData(data.name)}
+                                                                className="px-3 py-2 text-red-500 bg-red-100 rounded-lg font-medium shadow hover:bg-red-200 transition ease-in-out flex items-center justify-center"
+                                                            >
+                                                                <FaTrashAlt className="text-sm" />
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {isLoading && (
                     <div className="flex justify-center items-center mt-10">
@@ -320,11 +397,14 @@ function App() {
                 {!isLoading && (
                     <>
                         {repos.length > 0 && !isLoading && (
-                            <div className="mt-8 p-8 bg-gradient-to-r from-gray-50 via-white to-gray-50 rounded-3xl shadow-md border border-gray-200/40 space-y-8">
+                            <div className="mt-5 p-8 bg-gradient-to-r from-gray-50 via-white to-gray-50 rounded-3xl shadow-md border border-gray-200/40 space-y-8">
                                 {/* Header */}
                                 <div className="text-center space-y-2">
                                     <h2 className="text-3xl font-bold text-gray-800 tracking-tight">User and Repository Information</h2>
-                                    <p className="text-sm text-indigo-500 font-semibold">Overall Commits: {overallTotal}</p>
+                                    <div className="flex justify-center gap-10">
+                                        <p className="text-sm text-indigo-500 font-semibold">Collection: {loadedCollectionName}</p>
+                                        <p className="text-sm text-indigo-500 font-semibold">Overall Commits: {overallTotal}</p>
+                                    </div>
                                 </div>
 
                                 {/* User & Repo Cards */}
