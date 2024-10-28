@@ -26,7 +26,7 @@ function About() {
     return (
         <>
             {/* About Button */}
-            <div className="flex gap-5">
+            <div className="flex gap-5 ml-5">
                 <button
                     onClick={toggleAbout}
                     className="text-gray-600 hover:text-indigo-600 flex items-center space-x-2 transition-all duration-500 ease-in-out"
